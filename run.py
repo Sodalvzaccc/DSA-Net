@@ -25,7 +25,7 @@ def parse_arguments():
 
     parser.add_argument('--data_mode', type=str, default='multi-class', help="The selected person id.")
 
-    parser.add_argument('--method', type=str, default='mvcl_daf', help="which method to use.")
+    parser.add_argument('--method', type=str, default='dsa_net', help="which method to use.")
 
     parser.add_argument("--text_backbone", type=str, default='bert-large-uncased',
                         help="which backbone to use for text modality")
@@ -38,7 +38,7 @@ def parse_arguments():
 
     parser.add_argument('--gpu_id', type=str, default='0', help="The selected person id.")
 
-    parser.add_argument("--data_path", default="/root/autodl-tmp/MVCL-DAF/dataset", type=str,
+    parser.add_argument("--data_path", default="/root/autodl-tmp/DSA-Net/dataset", type=str,
                         help="The input data dir. Should contain text, video and audio data for the task.")
 
     parser.add_argument("--train", action="store_true", default=True, help="Whether to train the model.")
@@ -65,7 +65,7 @@ def parse_arguments():
     parser.add_argument("--model_path", default='models', type=str,
                         help="The output directory where the model predictions and checkpoints will be written.")
 
-    parser.add_argument("--config_file_name", type=str, default='MVCL_DAF_MIntRec2.py',
+    parser.add_argument("--config_file_name", type=str, default='MIntRec2.py',
                         help="The name of the config file.")
 
     parser.add_argument("--results_file_name", type=str, default='results.csv',
