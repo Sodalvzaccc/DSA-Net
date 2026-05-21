@@ -482,8 +482,7 @@ class Positive(BertPreTrainedModel):
         self.alignNet = AlignSubNet(args, args.aligned_method)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # 图结构增强仅用于文本模态。
-        # 视觉/语音模态不再进行 HAN/PAG 图传播，也不再做图增强前的数据增强。
+
         self.HAN_text = HANLayer(config.hidden_size, config.hidden_size // 4, num_heads=4)
         self.fusion_text = NewFusionGate(config.hidden_size)
 
@@ -639,8 +638,6 @@ class Positive(BertPreTrainedModel):
 
 
         # ================= Text-only Graph Enhancement =================
-        # PAG/HAN 只作用于文本模态的 [CLS] 节点表示。
-        # 视觉和语音模态不经过图传播、不做结构增强，保持其原始模态表示。
         node_text = text_feat[:, 0, :]
 
         if h_graph is not None:
@@ -691,7 +688,6 @@ class Positive(BertPreTrainedModel):
                 similarity_label_tv
             )
 
-            # 6. Text-Audio Forward (重复上述逻辑)
             t_aligned_match_a, a_aligned_match, _ = self.consistency_ta(feat_t, matched_a)
             t_aligned_unmatch_a, a_aligned_unmatch, _ = self.consistency_ta(feat_t, unmatched_a)
 
