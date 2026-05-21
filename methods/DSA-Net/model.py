@@ -482,20 +482,10 @@ class Positive(BertPreTrainedModel):
         self.alignNet = AlignSubNet(args, args.aligned_method)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # --- 1. 特征增强模块 (数据增强) ---
         self.aug = FeatureAugment(noise_level=0.05, mask_prob=0.1)
-
-        # --- 2. 多通道 HAN (特征增强) ---
         self.HAN_text = HANLayer(config.hidden_size, config.hidden_size // 4, num_heads=4)
         self.fusion_text = NewFusionGate(config.hidden_size)
 
-        # 视频 HAN (新增)
-        self.HAN_video = HANLayer(args.video_feat_dim, args.video_feat_dim // 4, num_heads=4)
-        self.fusion_video = NewFusionGate(args.video_feat_dim)
-
-        # 音频 HAN (新增)
-        self.HAN_audio = HANLayer(args.audio_feat_dim, args.audio_feat_dim // 4, num_heads=4)
-        self.fusion_audio = NewFusionGate(args.audio_feat_dim)
 
         # ================= Alignment Modules =================
         self.grounding_text = MLPLayer(config.hidden_size, config.hidden_size)
