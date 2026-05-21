@@ -482,7 +482,8 @@ class Positive(BertPreTrainedModel):
         self.alignNet = AlignSubNet(args, args.aligned_method)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.aug = FeatureAugment(noise_level=0.05, mask_prob=0.1)
+        # 图结构增强仅用于文本模态。
+        # 视觉/语音模态不再进行 HAN/PAG 图传播，也不再做图增强前的数据增强。
         self.HAN_text = HANLayer(config.hidden_size, config.hidden_size // 4, num_heads=4)
         self.fusion_text = NewFusionGate(config.hidden_size)
 
@@ -637,29 +638,19 @@ class Positive(BertPreTrainedModel):
         acoustic_feat = self.acoustic_encoder(acoustic)
 
 
+        # ================= Text-only Graph Enhancement =================
+        # PAG/HAN 只作用于文本模态的 [CLS] 节点表示。
+        # 视觉和语音模态不经过图传播、不做结构增强，保持其原始模态表示。
         node_text = text_feat[:, 0, :]
 
-        graph_output = self.HAN_text(h_graph, node_text)
+        if h_graph is not None:
+            graph_output = self.HAN_text(h_graph, node_text)
+            enhanced_node = self.fusion_text(node_text, graph_output)
 
-        enhanced_node = self.fusion_text(node_text, graph_output)
+            delta = enhanced_node - node_text
+            text_feat = text_feat + delta.unsqueeze(1)
 
-        delta = enhanced_node - node_text
-        text_feat = text_feat + delta.unsqueeze(1)
-
-        # === Channel 2: Video ===
-        node_visual = visual_feat.mean(dim=1)
-        node_visual_aug = self.aug(node_visual)
-        graph_out_video = self.HAN_video(h_graph, node_visual_aug)
-        enhanced_node_video = self.fusion_video(node_visual, graph_out_video)
-        visual_feat = visual_feat + (enhanced_node_video - node_visual).unsqueeze(1)
-
-        # === Channel 3: Audio ===
-        node_acoustic = acoustic_feat.mean(dim=1)
-        node_acoustic_aug = self.aug(node_acoustic)  # 数据增强
-        graph_out_audio = self.HAN_audio(h_graph, node_acoustic_aug)  # 结构增强
-        enhanced_node_audio = self.fusion_audio(node_acoustic, graph_out_audio)
-        acoustic_feat = acoustic_feat + (enhanced_node_audio - node_acoustic).unsqueeze(1)
-
+        # Non-text modalities remain unchanged after their original encoders.
         enhanced_text = text_feat[:, 0, :]
         enhanced_visual = visual_feat.mean(dim=1)
         enhanced_acoustic = acoustic_feat.mean(dim=1)
