@@ -483,8 +483,23 @@ class Positive(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
 
-        self.HAN_text = HANLayer(config.hidden_size, config.hidden_size // 4, num_heads=4)
+        self.HAN_text = nn.ModuleList([
+            HANLayer(config.hidden_size, config.hidden_size // 4, num_heads=4)
+            for _ in range(self.graph_layers)
+        ])
         self.fusion_text = NewFusionGate(config.hidden_size)
+
+        self.HAN_video = nn.ModuleList([
+            HANLayer(args.video_feat_dim, args.video_feat_dim // 4, num_heads=4)
+            for _ in range(self.graph_layers)
+        ])
+        self.fusion_video = NewFusionGate(args.video_feat_dim)
+        
+        self.HAN_audio = nn.ModuleList([
+            HANLayer(args.audio_feat_dim, args.audio_feat_dim // 4, num_heads=4)
+            for _ in range(self.graph_layers)
+        ])
+        self.fusion_audio = NewFusionGate(args.audio_feat_dim)
 
 
         # ================= Alignment Modules =================
@@ -635,9 +650,9 @@ class Positive(BertPreTrainedModel):
 
         # Acoustic Encoder
         acoustic_feat = self.acoustic_encoder(acoustic)
+        
 
 
-        # ================= Text-only Graph Enhancement =================
         node_text = text_feat[:, 0, :]
 
         if h_graph is not None:
@@ -646,6 +661,17 @@ class Positive(BertPreTrainedModel):
 
             delta = enhanced_node - node_text
             text_feat = text_feat + delta.unsqueeze(1)
+            node_visual = visual_feat.mean(dim=1)
+            node_visual_aug = self.aug(node_visual)
+            graph_out_video = self._apply_graph_layers(self.HAN_video, h_graph, node_visual_aug)
+            enhanced_node_video = self._crc_fuse(node_visual, graph_out_video, self.fusion_video)
+            visual_feat = visual_feat + (enhanced_node_video - node_visual).unsqueeze(1)
+    
+            node_acoustic = acoustic_feat.mean(dim=1)
+            node_acoustic_aug = self.aug(node_acoustic)  # 数据增强
+            graph_out_audio = self._apply_graph_layers(self.HAN_audio, h_graph, node_acoustic_aug)  # 结构增强
+            enhanced_node_audio = self._crc_fuse(node_acoustic, graph_out_audio, self.fusion_audio)
+            acoustic_feat = acoustic_feat + (enhanced_node_audio - node_acoustic).unsqueeze(1)
 
         # Non-text modalities remain unchanged after their original encoders.
         enhanced_text = text_feat[:, 0, :]
